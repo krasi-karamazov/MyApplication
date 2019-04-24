@@ -1,5 +1,7 @@
 package com.appsbg.myapplication
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
@@ -8,7 +10,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Bitmap
 import android.util.TypedValue
-
+import android.view.animation.Animation
 
 
 class MaskingRectView constructor(ctx: Context, attr: AttributeSet) : View(ctx, attr) {
@@ -27,8 +29,18 @@ class MaskingRectView constructor(ctx: Context, attr: AttributeSet) : View(ctx, 
     var frameLeft: Float = 0f
         get() = puncherLeft
 
+    var orientation: Int = ORIENTATION_PORTRAIT
+        set(value){
+            field = value
+            animateRelayoutProcedure()
+        }
+
+    var animationEndListener: AnimationEndListener? = null
+
     companion object {
         private const val CREDIT_CARD_ASPECT_RATIO = 1.586f
+        const val ORIENTATION_LANDSCAPE = 1
+        const val ORIENTATION_PORTRAIT = 0
     }
 
     private lateinit var semiTransparentBmp: Bitmap
@@ -59,12 +71,30 @@ class MaskingRectView constructor(ctx: Context, attr: AttributeSet) : View(ctx, 
             16f,
             context.resources.displayMetrics
         )
-        if(measuredWidth > measuredHeight) { //landscape
-            cardRectHeight = measuredHeight - (screenPadding * 2)
-            cardRectWidth = cardRectHeight * CREDIT_CARD_ASPECT_RATIO
+        if(orientation == ORIENTATION_LANDSCAPE) { //landscape
+            cardRectHeight = cardRectWidth * CREDIT_CARD_ASPECT_RATIO
+            cardRectWidth = measuredWidth - (screenPadding * 2)
         }else{ //portrait
             cardRectWidth = measuredWidth - (screenPadding * 2)
             cardRectHeight = cardRectWidth / CREDIT_CARD_ASPECT_RATIO
+        }
+    }
+
+    private val animationListener: AnimatorListenerAdapter = object: AnimatorListenerAdapter(){
+        override fun onAnimationEnd(animation: Animator?) {
+            super.onAnimationEnd(animation)
+            requestLayout()
+            invalidate()
+        }
+    }
+
+    private fun animateRelayoutProcedure() {
+        apply {
+            alpha = 0f
+            animate()
+                .alpha(1f)
+                .setDuration(2000)
+                .setListener(animationListener)
         }
     }
 
