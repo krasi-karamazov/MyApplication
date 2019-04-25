@@ -6,8 +6,7 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Size
 import android.Manifest.permission
-import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.support.v4.app.ActivityCompat
 import android.content.pm.PackageManager
@@ -18,13 +17,10 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.hardware.camera2.*
-import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
-import android.hardware.camera2.params.StreamConfigurationMap
 import android.media.ImageReader
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.PersistableBundle
 import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.util.SparseIntArray
@@ -35,7 +31,8 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
 
-class MainActivity : AppCompatActivity(), AnimationEndListener {
+class MainActivity : AppCompatActivity(), AnimationEndListener, SensorEventListener {
+
 
     /**
      * [TextureView.SurfaceTextureListener] handles several lifecycle events on a
@@ -56,22 +53,6 @@ class MainActivity : AppCompatActivity(), AnimationEndListener {
         override fun onSurfaceTextureUpdated(texture: SurfaceTexture) = Unit
 
     }
-
-    private val sensorEventListener: OrientationEventListener by lazy {
-        object: OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
-            override fun onOrientationChanged(orientation: Int) {
-                if (orientation == 0 || orientation == 180) {
-                    masking_rect.orientation = MaskingRectView.ORIENTATION_PORTRAIT
-                    sensorEventListener.disable()
-                } else if (orientation == 90 || orientation == 270) {
-                    masking_rect.orientation = MaskingRectView.ORIENTATION_LANDSCAPE
-                    sensorEventListener.disable()
-                }
-            }
-        }
-    }
-
-
 
     /**
      * ID of the current [CameraDevice].
@@ -178,6 +159,16 @@ class MainActivity : AppCompatActivity(), AnimationEndListener {
 
     private val REQUEST_CAMERA_PERMISSION = 200
 
+    private val paint:Paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    private val sensorManager: SensorManager by lazy {
+        getSystemService(Activity.SENSOR_SERVICE) as SensorManager
+    }
+
+    private lateinit var rotationSensor:Sensor
+
+    private var oldtilt: String = ""
+
     /**
      * A [CameraCaptureSession.CaptureCallback] that handles events related to JPEG capture.
      */
@@ -242,22 +233,83 @@ class MainActivity : AppCompatActivity(), AnimationEndListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        if(sensorEventListener.canDetectOrientation()) {
-            sensorEventListener.enable()
-        }else{
-            Log.d("CANNOT", "CANNOT")
-        }
+        rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        sensorManager.registerListener(this, rotationSensor, SENSOR_DELAY)
 
         masking_rect.animationEndListener = this
+        btn_take_photo.setOnClickListener{
+            val bmp = preview.bitmap
+            val x = masking_rect.frameLeft
+            val y = masking_rect.frameTop
+            val width = masking_rect.frameWidth
+            val height = masking_rect.frameHeight
+            val output = Bitmap.createBitmap(bmp, x.toInt(), y.toInt(), width.toInt(), height.toInt())
+            val canvas = Canvas(output)
+            canvas.drawBitmap(output, 0f, 0f, paint)
+            result.visibility = View.VISIBLE
+            result.setImageBitmap(output)
+            result.setOnClickListener{
+                result.visibility = View.GONE
+            }
+        }
     }
 
     override fun onAnimationEnd() {
-        if(sensorEventListener.canDetectOrientation()) {
-            sensorEventListener.enable()
-        }else{
-            Log.d("CANNOT", "CANNOT")
+
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor == rotationSensor) {
+	    	if (event.values.size > 4) {
+	    		val truncatedRotationVector:FloatArray = FloatArray(4)
+	    	    System.arraycopy(event.values, 0, truncatedRotationVector, 0, 4);
+	    	    update(truncatedRotationVector);
+	    	} else {
+	    		 update(event.values);
+	    	}
+	    }
+    }
+
+    private fun update(vectors: FloatArray) {
+        val rotationMatrix = FloatArray(9)
+        SensorManager.getRotationMatrixFromVector(rotationMatrix, vectors)
+        val worldAxisX = SensorManager.AXIS_X
+        val worldAxisZ = SensorManager.AXIS_Z
+        val adjustedRotationMatrix = FloatArray(9)
+        SensorManager.remapCoordinateSystem(rotationMatrix, worldAxisX, worldAxisZ, adjustedRotationMatrix)
+        val orientation = FloatArray(3)
+        SensorManager.getOrientation(adjustedRotationMatrix, orientation)
+        val pitch = orientation[1] * FROM_RADS_TO_DEGREES
+        val roll = orientation[2] * FROM_RADS_TO_DEGREES
+
+        val newtilt: String
+        if (-40 < pitch && pitch < 40) {
+            if (60 < roll && roll < 120) {
+                newtilt = "left"
+                if (newtilt != oldtilt) {
+                    oldtilt = newtilt
+                    masking_rect.orientation = MaskingRectView.ORIENTATION_LANDSCAPE
+                }
+            } else if (-120 < roll && roll < -60) {
+                newtilt = "right"
+                if (newtilt != oldtilt) {
+                    oldtilt = newtilt
+                    masking_rect.orientation = MaskingRectView.ORIENTATION_LANDSCAPE
+                }
+            } else if (-45 < roll && roll < 45) {
+                newtilt = "portrait"
+                if (newtilt != oldtilt) {
+                    oldtilt = newtilt
+                    masking_rect.orientation = MaskingRectView.ORIENTATION_PORTRAIT
+                }
+            }
         }
     }
+
 
     override fun onResume() {
         super.onResume()
@@ -696,6 +748,9 @@ class MainActivity : AppCompatActivity(), AnimationEndListener {
             ORIENTATIONS.append(Surface.ROTATION_180, 270)
             ORIENTATIONS.append(Surface.ROTATION_270, 180)
         }
+
+        private const val SENSOR_DELAY = 500* 1000
+        private const val FROM_RADS_TO_DEGREES = -57
 
         /**
          * Tag for the [Log].

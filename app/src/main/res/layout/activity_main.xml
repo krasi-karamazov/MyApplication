@@ -1,17 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
+<RelativeLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:context=".MainActivity"
-android:background="@color/colorPrimary">
-    <com.appsbg.myapplication.CameraTextureView
-            android:id="@+id/preview"
-            android:layout_width="match_parent" android:layout_height="match_parent"/>
+        android:layout_height="match_parent">
 
-    <com.appsbg.myapplication.MaskingRectView
-            android:id="@+id/masking_rect"
-            android:layout_width="match_parent" android:layout_height="match_parent"/>
+    <FrameLayout
+            android:id="@+id/test_menu"
+            android:layout_width="match_parent" android:layout_height="100dp"
+            android:layout_alignParentBottom="true">
+            <FrameLayout android:layout_width="match_parent" android:layout_height="100dp"
+                android:background="@android:color/black">
+                <Button android:id="@+id/btn_take_photo"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Take image"/>
+            </FrameLayout>
+    </FrameLayout>
 
-</FrameLayout>
+    <FrameLayout
+            android:layout_above="@+id/test_menu"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/black"
+            android:layout_alignParentTop="true"
+            tools:context=".MainActivity">
+        <com.appsbg.myapplication.CameraTextureView
+                android:id="@+id/preview"
+                android:layout_width="match_parent" android:layout_height="match_parent"/>
+
+        <com.appsbg.myapplication.MaskingRectView
+                android:id="@+id/masking_rect"
+                android:layout_width="match_parent" android:layout_height="match_parent"/>
+
+    </FrameLayout>
+    <ImageView
+            android:id="@+id/result"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+    android:scaleType="centerInside"/>
+
+</RelativeLayout>
+
+

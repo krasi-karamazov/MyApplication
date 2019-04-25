@@ -19,15 +19,15 @@ class MaskingRectView constructor(ctx: Context, attr: AttributeSet) : View(ctx, 
         Public properties
      */
     var frameWidth: Float = 0f
-        get() = cardRectWidth
-    var frameheight: Float = 0f
-        get() = cardRectHeight
+        get() = frameRect.width()
+    var frameHeight: Float = 0f
+        get() = frameRect.height()
 
     var frameTop: Float = 0f
-        get() = puncherTop
+        get() = frameRect.top
 
     var frameLeft: Float = 0f
-        get() = puncherLeft
+        get() = frameRect.left
 
     var orientation: Int = ORIENTATION_PORTRAIT
         set(value){
@@ -36,6 +36,8 @@ class MaskingRectView constructor(ctx: Context, attr: AttributeSet) : View(ctx, 
         }
 
     var animationEndListener: AnimationEndListener? = null
+
+    private lateinit var frameRect:RectF
 
     companion object {
         private const val CREDIT_CARD_ASPECT_RATIO = 1.586f
@@ -72,8 +74,9 @@ class MaskingRectView constructor(ctx: Context, attr: AttributeSet) : View(ctx, 
             context.resources.displayMetrics
         )
         if(orientation == ORIENTATION_LANDSCAPE) { //landscape
-            cardRectHeight = cardRectWidth * CREDIT_CARD_ASPECT_RATIO
             cardRectWidth = measuredWidth - (screenPadding * 2)
+            cardRectHeight = cardRectWidth * CREDIT_CARD_ASPECT_RATIO
+
         }else{ //portrait
             cardRectWidth = measuredWidth - (screenPadding * 2)
             cardRectHeight = cardRectWidth / CREDIT_CARD_ASPECT_RATIO
@@ -85,15 +88,21 @@ class MaskingRectView constructor(ctx: Context, attr: AttributeSet) : View(ctx, 
             super.onAnimationEnd(animation)
             requestLayout()
             invalidate()
+            animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f )
+                .duration = 200
         }
     }
 
     private fun animateRelayoutProcedure() {
         apply {
-            alpha = 0f
             animate()
-                .alpha(1f)
-                .setDuration(2000)
+                .alpha(0f)
+                .setDuration(200)
+                .scaleX(0f)
+                .scaleY(0f)
                 .setListener(animationListener)
         }
     }
@@ -107,8 +116,8 @@ class MaskingRectView constructor(ctx: Context, attr: AttributeSet) : View(ctx, 
         puncherLeft = measuredWidth.toFloat() / 2f - (cardRectWidth / 2f)
         puncherTop = measuredHeight.toFloat() / 2f - (cardRectHeight / 2f)
         puncherPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-
-        bmpCanvas.drawRoundRect(RectF(puncherLeft, puncherTop, puncherLeft + cardRectWidth, puncherTop + cardRectHeight), 10f, 10f,  puncherPaint)
+        frameRect = RectF(puncherLeft, puncherTop, puncherLeft + cardRectWidth, puncherTop + cardRectHeight)
+        bmpCanvas.drawRoundRect(frameRect, 10f, 10f,  puncherPaint)
     }
 
     override fun onDraw(canvas: Canvas?) {
