@@ -23,7 +23,7 @@
             android:layout_height="match_parent"
             android:background="@android:color/black"
             android:layout_alignParentTop="true"
-            tools:context=".MainActivity">
+            tools:context=".CardScanActivity">
         <com.appsbg.myapplication.CameraTextureView
                 android:id="@+id/preview"
                 android:layout_width="match_parent" android:layout_height="match_parent"/>
